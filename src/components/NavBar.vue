@@ -125,5 +125,7 @@ const submitHandler = (event: Event) => {
       [playerTwo]: 0
     }
   })
+
+  location.reload();
 }
 </script>
