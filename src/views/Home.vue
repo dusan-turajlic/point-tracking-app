@@ -18,7 +18,6 @@
 </template>
 
 <script setup lang="ts">
-import ScoreCard from './components/ScoreCard.vue'
 import { computed } from 'vue'
 import { getGames } from '../storage'
 

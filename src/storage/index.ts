@@ -10,7 +10,7 @@ interface NewGame {
 
 export const LOCAL_STORAGE_KEY = 'local.games';
 
-export function getGames() {
+export function getGames(): Record<string, NewGame> {
     const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
 
     if (currentGames) {
@@ -24,13 +24,13 @@ export function getGames() {
 
                 return [key, value]
             })
-        )
+        ) as Record<string, NewGame>
     } else {
         return {};
     }
 }
 
-export function getGame(gameName: string) {
+export function getGame(gameName: string): NewGame {
     return getGames()[gameName]
 }
 

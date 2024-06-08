@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const gameName = route.params.gamekey;
+const gameName = route.params.gamekey as string;
 
 const { score, name, max } = defineProps<{ name: string, score: number, max: number }>()
 

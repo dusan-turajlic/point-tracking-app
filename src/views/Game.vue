@@ -22,6 +22,6 @@ import ScoreCardVue from '../components/ScoreCard.vue';
 
   const route = useRoute()
   
-  const game = computed(() => getGame(route.params.gamekey));
+  const game = computed(() => getGame(route.params.gamekey as string));
   
 </script>
