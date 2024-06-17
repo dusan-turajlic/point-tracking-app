@@ -1,4 +1,4 @@
-interface NewGame {
+export interface NewGame {
     name: string;
     description: string;
     limit: number;
@@ -56,6 +56,28 @@ export function createGame({name, description, limit, scores}: NewGame) {
     }
 }
 
+export function updateGameDetails(gameName: string, {name, description, limit, scores}: NewGame) {
+    const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
+
+    if (currentGames) {
+        const games = JSON.parse(currentGames)
+        delete games[gameName]
+
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+            ...games,
+            [gameName]: {
+                name,
+                description,
+                limit,
+                scores
+            }
+        }));
+    } else {
+        throw new Error('No games to update m8')
+    }
+
+}
+
 export function updateGame(gameName: string, score: number, particpant: string) {
     const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
 
@@ -63,7 +85,14 @@ export function updateGame(gameName: string, score: number, particpant: string) 
         const games = JSON.parse(currentGames)
         games[gameName].scores[particpant] = score
 
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(games));        
+        const thisGame = JSON.parse(JSON.stringify(games[gameName]))
+
+        delete games[gameName];
+
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+            [gameName]: thisGame,
+            ...games,
+        }));
     } else {
         throw new Error('No games to update m8')
     }
