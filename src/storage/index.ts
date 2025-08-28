@@ -1,112 +1,95 @@
+import createProvider from "../services/providers";
+
 export interface NewGame {
+    id: string;
     name: string;
     description: string;
     limit: number;
     currentLeader?: string;
     scores: {
-        [name: string]: number
+        [name: string]: {score: number}
     };
 }
 
-export const LOCAL_STORAGE_KEY = 'local.games';
+type CreateNewGame = Omit<NewGame, 'id'>;
 
-export function getGames(): Record<string, NewGame> {
-    const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
+const provider = createProvider('indexDB')
+const GAME_PATH = 'games';
 
-    if (currentGames) {
-        const games = JSON.parse(currentGames);
-        return Object.fromEntries(
-            Object.entries(games).map(([key, value]) => {
-                const val = (value as NewGame);
-                const [leaderName, leaderScore] = Object.entries(val.scores).sort(([, a], [, b]) => b-a)[0];
-
-                val.currentLeader = `${leaderName} is in the leade ${leaderScore}`;
-
-                return [key, value]
-            })
-        ) as Record<string, NewGame>
-    } else {
-        return {};
+async function oldFormatToNewFormatMigration() {
+    const games = localStorage.getItem('local.games');
+    const hasMigrated = localStorage.getItem('local.games.migrated');
+    if (hasMigrated) {
+        return;
     }
+
+    if (games) {
+        const newGames = JSON.parse(games);
+        Object.entries(newGames).forEach(async ([, value]) => {
+            const val = (value as CreateNewGame);
+            await createGame({
+                ...val, 
+                scores: Object.fromEntries(
+                    Object.entries(val.scores).map(([key, value]) => [key, {score: value}])
+                ) as unknown as CreateNewGame['scores']
+            });
+        })
+    }
+
+    localStorage.setItem('local.games.migrated', 'true');
 }
 
-export function getGame(gameName: string): NewGame {
-    return getGames()[gameName]
+oldFormatToNewFormatMigration();
+
+export async function getGames(): Promise<Record<string, NewGame>> {
+    const games = await provider.get<Record<string, NewGame>>(GAME_PATH)
+        .catch(() => ({}))
+
+    return Object.fromEntries(
+        Object.entries(games).map(([key, value]) => {
+            const val = (value as NewGame);
+            const [leaderName, leaderScore] = Object.entries(val.scores).sort(([, a], [, b]) => b.score-a.score)[0];
+
+            val.currentLeader = `${leaderName} is in the lead with ${leaderScore.score} points`;
+
+            return [key, val]
+        })
+    );
+}
+
+export async function getGame(gameId: string): Promise<NewGame> {
+    return await provider.get<NewGame>(`${GAME_PATH}/${gameId}`);
 }
 
 
-export function createGame({name, description, limit, scores}: NewGame) {
-    const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY)
-    const storeageName = `${name}_${description}`.replace(/[^A-Z0-9]+/ig, "_");
-    const storeData = {
+export async function createGame({name, description, limit, scores}: CreateNewGame) {
+    return await provider.create(GAME_PATH, {
         name,
         description,
         limit,
         scores
-    }
-
-    if (currentGames) {
-        const games = JSON.parse(currentGames)
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-            ...games,
-            [storeageName]: storeData
-        }));
-    } else {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({[storeageName]: storeData}));
-    }
+    })
 }
 
-export function updateGameDetails(gameName: string, {name, description, limit, scores}: NewGame) {
-    const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
-
-    if (currentGames) {
-        const games = JSON.parse(currentGames)
-        delete games[gameName]
-
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-            ...games,
-            [gameName]: {
-                name,
-                description,
-                limit,
-                scores
-            }
-        }));
-    } else {
-        throw new Error('No games to update m8')
-    }
-
+export async function updateGameDetails(gameId: string, {name, description, limit, scores}: CreateNewGame) {
+    return provider.update(`${GAME_PATH}/${gameId}`, {
+        name,
+        description,
+        limit,
+        scores
+    })
 }
 
-export function updateGame(gameName: string, score: number, particpant: string) {
-    const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
-
-    if (currentGames) {
-        const games = JSON.parse(currentGames)
-        games[gameName].scores[particpant] = score
-
-        const thisGame = JSON.parse(JSON.stringify(games[gameName]))
-
-        delete games[gameName];
-
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-            [gameName]: thisGame,
-            ...games,
-        }));
-    } else {
-        throw new Error('No games to update m8')
-    }
+export async function updateGame(gameId: string, score: number, particpantId: string) {
+    const game = await getGame(gameId);
+    await provider.update(`${GAME_PATH}/${gameId}`, {
+        scores: {
+            ...game.scores,
+            [particpantId]: {score}
+        }
+    })
 }
 
-export function deleteGame(gameName: string) {
-    const currentGames = localStorage.getItem(LOCAL_STORAGE_KEY);
-
-    if (currentGames) {
-        const games = JSON.parse(currentGames)
-        delete games[gameName]
-
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(games));        
-    } else {
-        throw new Error('No games to delete m8')
-    }
+export async function deleteGame(gameId: string) {
+    return await provider.delete(`${GAME_PATH}/${gameId}`)
 }

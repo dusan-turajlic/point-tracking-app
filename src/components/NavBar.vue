@@ -52,7 +52,7 @@ const router = useRoute()
 
 const open = ref(false)
 
-const submitHandler = (event: Event) => {
+const submitHandler = async (event: Event) => {
   event.preventDefault()
 
   const form = event.target as HTMLFormElement;
@@ -63,13 +63,13 @@ const submitHandler = (event: Event) => {
   const playerOne = formData.get('player-one') as string;
   const playerTwo = formData.get('player-two') as string;
 
-  createGame({
+  await createGame({
     name,
     description,
     limit: gameLimit,
     scores: {
-      [playerOne]: 0,
-      [playerTwo]: 0
+      [playerOne]: {score: 0},
+      [playerTwo]: {score: 0}
     }
   })
 

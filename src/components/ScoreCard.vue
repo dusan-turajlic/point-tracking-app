@@ -12,10 +12,10 @@ const { score, name, max } = defineProps<{ name: string, score: number, max: num
 
 const count = ref(score ?? 0)
 
-const update = (num: number) => {
+const update = async (num: number) => {
     if (num <= max) {
         count.value = num
-        updateGame(gameName, num, name)
+        await updateGame(gameName, num, name)
     }
 }
 </script>
