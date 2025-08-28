@@ -154,64 +154,42 @@ export default class IndexDBProvider extends BaseProvider {
     }
 
     async delete(path: string): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const store = await this.getStore('readwrite');
-                const request = store.delete(path);
+        const store = await this.getStore('readwrite');
+        const request = store.delete(path);
 
-                request.onsuccess = () => {
-                    resolve();
-                };
+        await this.wrap(request);
 
-                request.onerror = () => {
-                    reject(new Error('Failed to delete data from IndexDB'));
-                };
-            } catch (error) {
-                reject(error);
-            }
-        });
+        return;
     }
 
     async reorder(path: string, items: string[]): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const store = await this.getStore('readwrite');
-                const index = store.index('path');
-                
-                // Get all items that start with the path
-                const request = index.getAll(IDBKeyRange.bound(path, path + '\uffff'));
-                
-                request.onsuccess = () => {
-                    const existingItems = request.result;
-                    const transaction = store.transaction;
-                    
-                    // Delete existing items
-                    existingItems.forEach(item => {
-                        store.delete(item.path);
-                    });
-                    
-                    // Re-add items in new order
-                    items.forEach((itemId, index) => {
-                        const fullPath = `${path}/${itemId}`;
-                        const item = existingItems.find(existing => existing.path === fullPath);
-                        if (item) {
-                            store.put({
-                                ...item,
-                                order: index
-                            });
-                        }
-                    });
-                    
-                    transaction.oncomplete = () => resolve();
-                    transaction.onerror = () => reject(new Error('Failed to reorder items in IndexDB'));
-                };
-                
-                request.onerror = () => {
-                    reject(new Error('Failed to get items for reordering from IndexDB'));
-                };
-            } catch (error) {
-                reject(error);
+        const store = await this.getStore('readwrite');
+        const index = store.index('path');
+        const request = index.getAll(IDBKeyRange.bound(path, path + '\uffff'));
+        const existingItems = await this.wrap(request);
+        const transaction = store.transaction;
+        
+        existingItems.forEach(item => {
+            store.delete(item.path);
+        });
+        
+        items.forEach((itemId, index) => {
+            const fullPath = `${path}/${itemId}`;
+            const item = existingItems.find(existing => existing.path === fullPath);
+            if (item) {
+                store.put({
+                    ...item,
+                    order: index
+                });
             }
         });
+        
+        transaction.oncomplete = () => {
+            return;
+        };
+        
+        transaction.onerror = () => {
+            throw new Error('Failed to reorder items in IndexDB');
+        };
     }
 }
